@@ -1,27 +1,19 @@
-
+#include <Arduino.h>
+#include "heltec.h"
 #include "LoRaWan_APP.h"
-#include "Arduino.h"
-#ifndef LoraWan_RGB
-#define LoraWan_RGB 0
-#endif
+
+#define SERIAL_MONITOR_BAUD_RATE                    115200    // Baud rate
 #define RF_FREQUENCY                                868000000 // Hz
 #define TX_OUTPUT_POWER                             10        // dBm
-#define LORA_BANDWIDTH                              0         // [0: 125 kHz,
-                                                              //  1: 250 kHz,
-                                                              //  2: 500 kHz,
-                                                              //  3: Reserved]
+#define LORA_BANDWIDTH                              0         // [0: 125 kHz, 1: 250 kHz, 2: 500 kHz, 3: Reserved]
 #define LORA_SPREADING_FACTOR                       11        // [SF7..SF12]
-#define LORA_CODINGRATE                             1         // [1: 4/5,
-                                                              //  2: 4/6,
-                                                              //  3: 4/7,
-                                                              //  4: 4/8]
+#define LORA_CODINGRATE                             1         // [1: 4/5,  2: 4/6,  3: 4/7,  4: 4/8]
 #define LORA_PREAMBLE_LENGTH                        8         // Same for Tx and Rx
-#define LORA_SYMBOL_TIMEOUT                         100         // Symbols
+#define LORA_SYMBOL_TIMEOUT                         100       // Timeout en symbolos
 #define LORA_FIX_LENGTH_PAYLOAD_ON                  false
 #define LORA_IQ_INVERSION_ON                        false
-#define RX_TIMEOUT_VALUE                            4000
-#define BUFFER_SIZE                                 100 // Define the payload size here
-
+#define RX_TIMEOUT_VALUE                            4000      // Tiempo de escucha antes de reiniciar
+#define PACKET_SIZE                                 48        // Define the packet size here
 
 typedef enum {
     ERR,
@@ -64,68 +56,81 @@ typedef enum {
     OBC_DEBUG_MODE
 } telecommandIDS;
 
-uint8_t txpacket[48];
-uint8_t RxData[48];
-
-static RadioEvents_t RadioEvents;
-
-int16_t rssi,rxSize;
-String tcinput;
-int tcnumber=0;
+//___________________________________________________________
+//  VARIABLES
+uint8_t txPacket[PACKET_SIZE];  // Payload final tras encoding
+uint8_t RxData[PACKET_SIZE];
+uint8_t rxPacket[PACKET_SIZE];  // Buffer de recepción
+uint8_t tcPacket[PACKET_SIZE] = {0xC8,0x9D,0x00,0x00,0x00,0x00,0x03,0x83,0x1E,0x19,0xDC,0x63,0x53,0xC4}; // Cabecera fija para cada comando
+uint8_t encodedPacket[48];     // Resultado del interleave
+int16_t rssi, rxSize;
+int tcNumber=0;
+int sendData_TLC_sent=0;
+volatile bool loraIdle = true;
 volatile int i=0;
-bool lora_idle = true;
-int senddata_TLC_sent=0;
+static RadioEvents_t RadioEvents;
+//___________________________________________________________
 
-uint8_t tcpacket[48]={0xC8,0x9D,0x00,0x00,0x00,0x00,0x03,0x83,0x1E,0x19,0xDC,0x63,0x53,0xC4};
-uint8_t Encoded_Packet[48];
+//___________________________________________________________
+//  FUNCIONES
+void setup();
+void loop();
+void SendTC(uint8_t TC);
+void OnReceive(int packetSize);//OnRxDone
+//OnTxDone
+void Interleave(uint8_t *input, int size);
+void Deinterleave(uint8_t *input, int size);
+void PrintHex(uint8_t b);
+//___________________________________________________________
 
-uint8_t totalpacketsize=0;
 
+//REVISAT
 void setup() {
-    Serial.begin(115200);
-    rssi=0;
-  
-    RadioEvents.RxDone = OnRxDone;
-    Radio.Init( &RadioEvents );
-    Radio.SetChannel( 868000000 );
-  
-    Radio.SetRxConfig( MODEM_LORA, LORA_BANDWIDTH, LORA_SPREADING_FACTOR,
-                                   LORA_CODINGRATE, 0, LORA_PREAMBLE_LENGTH,
-                                   LORA_SYMBOL_TIMEOUT, LORA_FIX_LENGTH_PAYLOAD_ON,
-                                   0, true, 0, 0, LORA_IQ_INVERSION_ON, true );
+  Serial.begin(SERIAL_MONITOR_BAUD_RATE);
+  rssi=0;
 
-    Radio.SetTxConfig( MODEM_LORA, TX_OUTPUT_POWER, 0, LORA_BANDWIDTH, LORA_SPREADING_FACTOR, LORA_CODINGRATE,
-                              LORA_PREAMBLE_LENGTH, LORA_FIX_LENGTH_PAYLOAD_ON,
-                              true, 0, 0, LORA_IQ_INVERSION_ON, 3000 );
-    RadioEvents.TxDone = OnTxDone; // standby
-    RadioEvents.RxDone = OnRxDone;
-   }
+  RadioEvents.RxDone = OnRxDone;
+  Radio.Init( &RadioEvents );
+  Radio.SetChannel( RF_FREQUENCY );
 
+  Radio.SetRxConfig( MODEM_LORA, LORA_BANDWIDTH, LORA_SPREADING_FACTOR,
+                                  LORA_CODINGRATE, 0, LORA_PREAMBLE_LENGTH,
+                                  LORA_SYMBOL_TIMEOUT, LORA_FIX_LENGTH_PAYLOAD_ON,
+                                  0, true, 0, 0, LORA_IQ_INVERSION_ON, true );
 
-void loop()
-{
-  tcnumber=0;
+  Radio.SetTxConfig( MODEM_LORA, TX_OUTPUT_POWER, 0, LORA_BANDWIDTH, LORA_SPREADING_FACTOR, LORA_CODINGRATE,
+                            LORA_PREAMBLE_LENGTH, LORA_FIX_LENGTH_PAYLOAD_ON,
+                            true, 0, 0, LORA_IQ_INVERSION_ON, 3000 );
+  RadioEvents.TxDone = OnTxDone; // standby
+  RadioEvents.RxDone = OnRxDone;
+}
+
+//REVISAT
+void loop() {
+  tcNumber=0;
   if (Serial.available() > 0)
   {
-    tcinput=Serial.readStringUntil('\n');
-    tcnumber=tcinput.toInt();
+    tcInput=Serial.readStringUntil('\n');
+    tcNumber=tcinput.toInt();
     printf("Test");
-    SendTC(tcnumber);
+    SendTC(tcNumber);
     delay(1800);
   
   }
   
-  if(lora_idle)
+  if(loraIdle)
   {
   	turnOffRGB();
-    lora_idle = false;
+    loraIdle = false;
     Radio.Rx(0);
   }
-  }
+}
 
-
+//REVISADA
 void SendTC(uint8_t TC) {
+  // Coloca el byte de comando (TC) en la posición 2 del array tcpacket
   tcpacket[2]=TC;
+  // Dependiendo del valor de TC, va rellenando el paquete con la información correspondiente
   switch (TC) {
       case PING:
           printf("Executing: ping\n");
@@ -264,30 +269,27 @@ void SendTC(uint8_t TC) {
           printf("Unknown command\n");
           break;
   }
-
-  totalpacketsize=48;
-  uint8_t *TxData = (uint8_t *) malloc(totalpacketsize);
-  
+  // Reserva dinámicamente un buffer de bytes para el envío
+  uint8_t *TxData = (uint8_t *) malloc(PACKET_SIZE);
   if (TxData == NULL) {
        exit(EXIT_FAILURE);
+       serial.printf("Error en la linea 258");
   }
-
-  memcpy(TxData,tcpacket,totalpacketsize);
+  // Copia el contenido de tcpacket (48 bytes) al buffer TxData
+  memcpy(TxData,tcpacket,PACKET_SIZE);
   Serial.println();
-	interleave((uint8_t*) TxData, totalpacketsize);
-	memcpy(Encoded_Packet,TxData,totalpacketsize);
+  // Aplica la función de interleaving al buffer TxData
+	interleave((uint8_t*) TxData, PACKET_SIZE);
+  // Copia el paquete entrelazado a Encoded_Packet
+	memcpy(Encoded_Packet,TxData,PACKET_SIZE);
+  // Libera la memoria dinámica ya que no la necesitamos más
 	free(TxData);
   Serial.println();
+  // Envía el paquete final por el módulo de radio
   Radio.Send(Encoded_Packet,sizeof(Encoded_Packet));
 }
 
-void printHex(uint8_t num) {
-  char hexCar[2];
-  sprintf(hexCar, "%02X", num);
-  Serial.print(hexCar);
-}
-void OnRxDone( uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr )
-{
+void OnRxDone( uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr ) {
     turnOnRGB(COLOR_RECEIVED,0);
 
   	memset(RxData,0,sizeof(RxData));
@@ -313,11 +315,10 @@ void OnRxDone( uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr )
 void OnTxDone()
 {
   lora_idle = true;;
-  
 }
 
-void interleave(uint8_t *inputarr, int size) {
-    // Check that the size is a multiple of 6.
+void interleave(uint8_t *input, int size) {
+  // Check that the size is a multiple of 6.
     if (size % 6 != 0) {
         return;
     }
@@ -344,27 +345,33 @@ void interleave(uint8_t *inputarr, int size) {
     free(temp);
 }
 
-void deinterleave(uint8_t *inputarr, int size) {
-    if (size % 6 != 0) {
-        return;
-    }
+void deinterleave(uint8_t *input, int size) {
+  if (size % 6 != 0) {
+      return;
+  }
 
-    int groupSize = size / 6;
-    uint8_t *temp =(uint8_t *) malloc(size * sizeof(uint8_t));
-    if (temp == NULL) {
-        exit(EXIT_FAILURE);
-    }
+  int groupSize = size / 6;
+  uint8_t *temp =(uint8_t *) malloc(size * sizeof(uint8_t));
+  if (temp == NULL) {
+      exit(EXIT_FAILURE);
+  }
 
-    // Reconstruct the original groups.
-    // For each group index i and for each group j:
-    // The interleaved array holds the jth element of group j at position i*6 + j.
-    // We restore it to temp[ j * groupSize + i ].
-    for (int i = 0; i < groupSize; i++) {
-        for (int j = 0; j < 6; j++) {
-            temp[j * groupSize + i] = inputarr[i * 6 + j];
-        }
-    }
+  // Reconstruct the original groups.
+  // For each group index i and for each group j:
+  // The interleaved array holds the jth element of group j at position i*6 + j.
+  // We restore it to temp[ j * groupSize + i ].
+  for (int i = 0; i < groupSize; i++) {
+      for (int j = 0; j < 6; j++) {
+          temp[j * groupSize + i] = inputarr[i * 6 + j];
+      }
+  }
 
-    memcpy(inputarr, temp, size * sizeof(uint8_t));
-    free(temp);
+  memcpy(inputarr, temp, size * sizeof(uint8_t));
+  free(temp);
+}
+
+void printHex(uint8_t num) {
+  char hexCar[2];
+  sprintf(hexCar, "%02X", num);
+  Serial.print(hexCar);
 }
