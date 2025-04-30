@@ -85,7 +85,6 @@ void PrintHex(uint8_t b);
 //___________________________________________________________
 
 
-//REVISAT
 void setup() {
   Serial.begin(SERIAL_MONITOR_BAUD_RATE);
   rssi=0;
@@ -106,7 +105,6 @@ void setup() {
   RadioEvents.RxDone = OnRxDone;
 }
 
-//REVISAT
 void loop() {
   tcNumber=0;
   if (Serial.available() > 0)
@@ -127,7 +125,6 @@ void loop() {
   }
 }
 
-//REVISADA
 void SendTC(uint8_t TC) {
     uint8_t *txData;
     // Coloca el byte de comando (TC) en la posición 2 del array tcpacket
