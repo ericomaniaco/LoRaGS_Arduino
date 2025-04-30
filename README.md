@@ -1,4 +1,4 @@
-La Libreria Heltec_ESP32_Dev-Boards se añade ya que para el funcionamiento del programa se han tenido que hacer lo siguientes cambios:
+La Libreria Heltec_ESP32_Dev-Boards debe ser editada para el funcionamiento del programa. Se han hecho los siguientes cambios:
 
   1- Heltec_ESP32_Dev-Boards\src\driver\sx126x.c
   
