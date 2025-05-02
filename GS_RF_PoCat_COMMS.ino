@@ -16,48 +16,49 @@
 #define PACKET_SIZE                                 48        // Define the packet size here
 
 typedef enum {
-    ERR,
-    PING,
-    TRANSIT_TO_NM,
-    TRANSIT_TO_CM,
-    TRANSIT_TO_SSM,
-    TRANSIT_TO_SM,
-    UPLOAD_ADCS_CALIBRATION,
-    UPLOAD_ADCS_TLE,
-    UPLOAD_COMMS_CONFIG,
-    COMMS_UPLOAD_PARAMS,
-    UPLOAD_UNIX_TIME,
-    UPLOAD_EPS_TH,
-    UPLOAD_PL_CONFIG,
-    DOWNLINK_CONFIG,
-    EPS_HEATER_ENABLE,
-    EPS_HEATER_DISABLE,
-    POL_PAYLOAD_SHUT,
-    POL_ADCS_SHUT,
-    POL_BURNCOMMS_SHUT,
-    POL_HEATER_SHUT,
-    POL_PAYLOAD_ENABLE,
-    POL_ADCS_ENABLE,
-    POL_BURNCOMMS_ENABLE,
-    POL_HEATER_ENABLE,
-    CLEAR_PL_DATA,
-    CLEAR_FLASH,
-    CLEAR_HT,
-    COMMS_STOP_TX,
-    COMMS_RESUME_TX,
-    COMMS_IT_DOWNLINK,
-    COMMS_HT_DOWNLINK,
-    PAYLOAD_SCHEDULE,
-    PAYLOAD_DEACTIVATE,
-    PAYLOAD_SEND_DATA,
-    OBC_HARD_REBOOT,
-    OBC_SOFT_REBOOT,
-    OBC_PERIPH_REBOOT,
-    OBC_DEBUG_MODE
+    ERR,                      // 0
+    PING,                     // 1
+    TRANSIT_TO_NM,            // 2
+    TRANSIT_TO_CM,            // 3
+    TRANSIT_TO_SSM,           // 4
+    TRANSIT_TO_SM,            // 5
+    UPLOAD_ADCS_CALIBRATION,  // 6
+    UPLOAD_ADCS_TLE,          // 7
+    UPLOAD_COMMS_CONFIG,      // 8
+    COMMS_UPLOAD_PARAMS,      // 9
+    UPLOAD_UNIX_TIME,         // 10
+    UPLOAD_EPS_TH,            // 11
+    UPLOAD_PL_CONFIG,         // 12
+    DOWNLINK_CONFIG,          // 13
+    EPS_HEATER_ENABLE,        // 14
+    EPS_HEATER_DISABLE,       // 15
+    POL_PAYLOAD_SHUT,         // 16
+    POL_ADCS_SHUT,            // 17
+    POL_BURNCOMMS_SHUT,       // 18
+    POL_HEATER_SHUT,          // 19
+    POL_PAYLOAD_ENABLE,       // 20
+    POL_ADCS_ENABLE,          // 21
+    POL_BURNCOMMS_ENABLE,     // 22
+    POL_HEATER_ENABLE,        // 23
+    CLEAR_PL_DATA,            // 24
+    CLEAR_FLASH,              // 25
+    CLEAR_HT,                 // 26
+    COMMS_STOP_TX,            // 27
+    COMMS_RESUME_TX,          // 28
+    COMMS_IT_DOWNLINK,        // 29
+    COMMS_HT_DOWNLINK,        // 30
+    PAYLOAD_SCHEDULE,         // 31
+    PAYLOAD_DEACTIVATE,       // 32
+    PAYLOAD_SEND_DATA,        // 33
+    OBC_HARD_REBOOT,          // 34
+    OBC_SOFT_REBOOT,          // 35
+    OBC_PERIPH_REBOOT,        // 36
+    OBC_DEBUG_MODE            // 37
 } telecommandIDS;
 
+
 //___________________________________________________________
-//  VARIABLES
+//  VARIABLES GLOBALES
 uint8_t txPacket[PACKET_SIZE];  // Payload final tras encoding
 uint8_t rxData[PACKET_SIZE];
 uint8_t tcPacket[PACKET_SIZE] = {0xC8,0x9D,0x00,0x00,0x00,0x00,0x03,0x83,0x1E,0x19,0xDC,0x63,0x53,0xC4}; // Cabecera fija para cada comando
@@ -72,37 +73,24 @@ int16_t rssi, rxSize;
 int sendData_TLC_sent=0;
 //___________________________________________________________
 
-//___________________________________________________________
-//  FUNCIONES
-void setup();
-void loop();
-void SendTC(uint8_t TC);
-void OnRxDone( uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr );
-void OnTxDone();
-void Interleave(uint8_t *input, int size);
-void Deinterleave(uint8_t *input, int size);
-void PrintHex(uint8_t b);
-//___________________________________________________________
-
-
 void setup() {
-  Serial.begin(SERIAL_MONITOR_BAUD_RATE);
-  rssi=0;
+    Serial.begin(SERIAL_MONITOR_BAUD_RATE);
+    rssi=0;
 
-  RadioEvents.RxDone = OnRxDone;
-  Radio.Init( &RadioEvents );
-  Radio.SetChannel( RF_FREQUENCY );
+    RadioEvents.RxDone = OnRxDone;
+    Radio.Init( &RadioEvents );
+    Radio.SetChannel( RF_FREQUENCY );
 
-  Radio.SetRxConfig( MODEM_LORA, LORA_BANDWIDTH, LORA_SPREADING_FACTOR,
-                                  LORA_CODINGRATE, 0, LORA_PREAMBLE_LENGTH,
-                                  LORA_SYMBOL_TIMEOUT, LORA_FIX_LENGTH_PAYLOAD_ON,
-                                  0, true, 0, 0, LORA_IQ_INVERSION_ON, true );
+    Radio.SetRxConfig( MODEM_LORA, LORA_BANDWIDTH, LORA_SPREADING_FACTOR,
+                                    LORA_CODINGRATE, 0, LORA_PREAMBLE_LENGTH,
+                                    LORA_SYMBOL_TIMEOUT, LORA_FIX_LENGTH_PAYLOAD_ON,
+                                    0, true, 0, 0, LORA_IQ_INVERSION_ON, true );
 
-  Radio.SetTxConfig( MODEM_LORA, TX_OUTPUT_POWER, 0, LORA_BANDWIDTH, LORA_SPREADING_FACTOR, LORA_CODINGRATE,
+    Radio.SetTxConfig( MODEM_LORA, TX_OUTPUT_POWER, 0, LORA_BANDWIDTH, LORA_SPREADING_FACTOR, LORA_CODINGRATE,
                             LORA_PREAMBLE_LENGTH, LORA_FIX_LENGTH_PAYLOAD_ON,
                             true, 0, 0, LORA_IQ_INVERSION_ON, 3000 );
-  RadioEvents.TxDone = OnTxDone; // standby
-  RadioEvents.RxDone = OnRxDone;
+    RadioEvents.TxDone = OnTxDone; // standby
+    RadioEvents.RxDone = OnRxDone;
 }
 
 void loop() {
@@ -111,7 +99,7 @@ void loop() {
   {
     tcInput=Serial.readStringUntil('\n');
     tcNumber=tcInput.toInt();
-    printf("Test");
+    Serial.printf("Telecomand %d\n", tcNumber);
     SendTC(tcNumber);
     delay(1800);
   
