@@ -1,4 +1,4 @@
-Este repositorio contiene la implementación de un sistema de envío de telecomandos LoRa
+Este repositorio contiene la implementación de un sistema de envío de telecomandos LoRa.
 
 Estructura del repositorio:
 
