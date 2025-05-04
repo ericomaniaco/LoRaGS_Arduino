@@ -1,15 +1,13 @@
-La Libreria Heltec_ESP32_Dev-Boards debe ser editada para el funcionamiento del programa. Se han hecho los siguientes cambios:
+Este repositorio contiene la implementación de un sistema de envío de telecomandos LoRa.
 
-  1- Heltec_ESP32_Dev-Boards\src\driver\sx126x.c
-  
-    + #include <Arduino.h> // para delay()
-    + #include <string.h>  // para memset()
+Estructura del repositorio:
 
-  2- Heltec_ESP32_Dev-Boards\src\driver\sx1262-board.c
-  
-    - lora_printf("spi timeout\r\n");
-    + log_printf("spi timeout\r\n");
-
-  3- Heltec_ESP32_Dev-Boards\src\radio\radio.c
-  
-    + #include <Arduino.h>  // Para declarar delay()
+  - HTCC-AB01_NoBlock:
+    
+      Versión funcional para placas de la familia CubeCell (testeado en HTCC-AB01) utilizando la librería LoRaWan_APP.h con eventos y callbacks.
+      Esto significa que el programa no bloquea el MCU mientras esta ejecutando la transmisión o recepción de telecomandos.
+    
+  - HWL32V3_Block:
+    
+      Adaptación para Heltec WiFi LoRa 32 (V3) (ESP32-S3), usando la librería RadioLib en modo bloqueante.
+      Esto significa que mientras se estan transmitiendo o recibiendo el MCU esta bloqueado y no puedo ejecutar otras acciones.
