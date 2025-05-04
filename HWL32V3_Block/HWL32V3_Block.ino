@@ -1,6 +1,18 @@
 #include <Arduino.h>
 #include <RadioLib.h>
 
+
+// Parámetros de configuración
+#define SERIAL_MONITOR_BR 115200
+#define RF_FREQUENCY      868.0   // MHz [150.0 to 960.0]
+#define TX_OUTPUT_POWER   10      // dBm
+#define LORA_BANDWIDTH    125.0   // Allowed values in kHz:
+                                  // [7.8, 10.4, 15.6, 20.8, 31.25, 
+                                  //  41.7, 62.5, 125.0, 250.0, 500.0]
+#define LORA_SPREADING_FACTOR 11  // [SF7..SF12]
+#define LORA_CODING_RATE  5       // [4/5, 4/6, 4/7, 4/8]
+#define PACKET_SIZE       48
+
 // Configuración de pines para Heltec WiFi LoRa 32 V3
 #define LORA_CS    8   // NSS
 #define LORA_RST   12  // Reset
@@ -55,16 +67,8 @@ typedef enum {
     OBC_DEBUG_MODE            // 37
 } telecommandIDS;
 
-// Parámetros de configuración
-#define RF_FREQUENCY      868.0   // MHz
-#define TX_OUTPUT_POWER   10      // dBm
-#define LORA_BANDWIDTH    125.0   // kHz
-#define LORA_SPREADING_FACTOR 11
-#define LORA_CODING_RATE  5       // 4/5
-
-#define PACKET_SIZE       48
-
-// Variables globales
+//_______________________________________________________
+// VARIABLES GLOBALES
 uint8_t txPacket[PACKET_SIZE];
 uint8_t rxPacket[PACKET_SIZE];
 uint8_t tcPacket[PACKET_SIZE] = {
@@ -76,6 +80,63 @@ uint8_t encodedPacket[PACKET_SIZE];
 
 String tcInput;
 int tcNumber = 0;
+
+//________________________________________________________
+//FUNCIONES
+
+void setup() {
+  Serial.begin(SERIAL_MONITOR_BR);
+  delay(2000);
+  Serial.println("Inicializando SX1262...");
+
+  // Inicializar el módulo LoRa
+  int state = lora.begin();
+  if (state == RADIOLIB_ERR_NONE) {
+    Serial.println("SX1262 inicializado correctamente.");
+  } else {
+    Serial.print("Error al inicializar SX1262, código: ");
+    Serial.println(state);
+    while (true);
+  }
+
+  // Configurar parámetros de transmisión
+  lora.setFrequency(RF_FREQUENCY);
+  lora.setBandwidth(LORA_BANDWIDTH);
+  lora.setSpreadingFactor(LORA_SPREADING_FACTOR);
+  lora.setCodingRate(LORA_CODING_RATE);
+  lora.setOutputPower(TX_OUTPUT_POWER);
+  lora.setCRC(true);
+
+  Serial.println("Listo para recibir comandos. Introduce número:");
+}
+
+void loop() {
+  if (Serial.available() > 0) {
+    tcInput = Serial.readStringUntil('\n');
+    tcNumber = tcInput.toInt();
+    Serial.printf("Telecomando recibido: %d\n", tcNumber);
+    SendTC(tcNumber);
+
+    // Esperar y escuchar la posible respuesta
+    uint8_t tempBuf[PACKET_SIZE];
+    int state = lora.receive(tempBuf, PACKET_SIZE);
+
+    if (state == RADIOLIB_ERR_NONE) {
+      // Obtener el tamaño real del paquete recibido
+      int len = lora.getPacketLength();
+      memcpy(rxPacket, tempBuf, len);
+      deinterleave(rxPacket, len);
+
+      Serial.println("Respuesta recibida:");
+      for (int i = 0; i < len; i++) {
+        printHex(rxPacket[i]);
+      }
+      Serial.println();
+    } else {
+      Serial.printf("Sin respuesta (código %d)\n", state);
+    }
+  }
+}
 
 // Función para imprimir en hexadecimal
 void printHex(uint8_t num) {
@@ -252,59 +313,6 @@ void SendTC(uint8_t TC) {
   }
 }
 
-void setup() {
-  Serial.begin(115200);
-  delay(2000);
-  Serial.println("Inicializando SX1262...");
 
-  // Inicializar el módulo LoRa
-  int state = lora.begin();
-  if (state == RADIOLIB_ERR_NONE) {
-    Serial.println("SX1262 inicializado correctamente.");
-  } else {
-    Serial.print("Error al inicializar SX1262, código: ");
-    Serial.println(state);
-    while (true);
-  }
-
-  // Configurar parámetros de transmisión
-  lora.setFrequency(RF_FREQUENCY);
-  lora.setBandwidth(LORA_BANDWIDTH);
-  lora.setSpreadingFactor(LORA_SPREADING_FACTOR);
-  lora.setCodingRate(LORA_CODING_RATE);
-  lora.setOutputPower(TX_OUTPUT_POWER);
-  lora.setCRC(true);
-
-  Serial.println("Listo para recibir comandos. Introduce número:");
-}
-
-void loop() {
-  if (Serial.available() > 0) {
-    tcInput = Serial.readStringUntil('\n');
-    tcNumber = tcInput.toInt();
-    Serial.printf("Telecomando recibido: %d\n", tcNumber);
-    SendTC(tcNumber);
-
-    // Esperar y escuchar la posible respuesta
-        uint8_t tempBuf[PACKET_SIZE];
-    int state = lora.receive(tempBuf, PACKET_SIZE);
-
-    if (state == RADIOLIB_ERR_NONE) {
-      // Obtener el tamaño real del paquete recibido
-      int len = lora.getPacketLength();
-      memcpy(rxPacket, tempBuf, len);
-      deinterleave(rxPacket, len);
-
-      Serial.println("Respuesta recibida:");
-      for (int i = 0; i < len; i++) {
-        printHex(rxPacket[i]);
-      }
-      Serial.println();
-    } else {
-      Serial.printf("Sin respuesta (código %d)\n", state);
-    }
-
-  }
-}
 
  
