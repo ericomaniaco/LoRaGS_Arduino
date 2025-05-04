@@ -1,8 +1,7 @@
 #include <Arduino.h>
 #include <RadioLib.h>
 
-
-// Parámetros de configuración
+//=============== Parámetros de configuración ===============
 #define SERIAL_MONITOR_BR 115200
 #define RF_FREQUENCY      868.0   // MHz [150.0 to 960.0]
 #define TX_OUTPUT_POWER   10      // dBm
@@ -25,7 +24,7 @@
 // Crear instancia del módulo SX1262
 SX1262 lora = new Module(LORA_CS, LORA_DIO1, LORA_RST, LORA_BUSY);
 
-// Definición de comandos
+// Definición de telecomandos
 typedef enum {
     ERR,                      // 0
     PING,                     // 1
@@ -67,8 +66,7 @@ typedef enum {
     OBC_DEBUG_MODE            // 37
 } telecommandIDS;
 
-//_______________________________________________________
-// VARIABLES GLOBALES
+//================= VARIABLES GLOBALES =================
 uint8_t txPacket[PACKET_SIZE];
 uint8_t rxPacket[PACKET_SIZE];
 uint8_t tcPacket[PACKET_SIZE] = {
@@ -81,8 +79,8 @@ uint8_t encodedPacket[PACKET_SIZE];
 String tcInput;
 int tcNumber = 0;
 
-//________________________________________________________
-//FUNCIONES
+
+//===================== FUNCIONES =====================
 
 void setup() {
   Serial.begin(SERIAL_MONITOR_BR);
@@ -111,32 +109,34 @@ void setup() {
 }
 
 void loop() {
+  // Verificar si se ha introducido un comando por el serial
   if (Serial.available() > 0) {
     tcInput = Serial.readStringUntil('\n');
     tcNumber = tcInput.toInt();
     Serial.printf("Telecomando recibido: %d\n", tcNumber);
     SendTC(tcNumber);
+  }
 
-    // Esperar y escuchar la posible respuesta
-    uint8_t tempBuf[PACKET_SIZE];
-    int state = lora.receive(tempBuf, PACKET_SIZE);
+  // Recepción pasiva constante
+  uint8_t tempBuf[PACKET_SIZE];
+  int state = lora.receive(tempBuf, PACKET_SIZE);
 
-    if (state == RADIOLIB_ERR_NONE) {
-      // Obtener el tamaño real del paquete recibido
-      int len = lora.getPacketLength();
-      memcpy(rxPacket, tempBuf, len);
-      deinterleave(rxPacket, len);
+  // Obtener el tamaño real del paquete recibido
+  if (state == RADIOLIB_ERR_NONE) {
+    int len = lora.getPacketLength();
+    memcpy(rxPacket, tempBuf, len);
+    deinterleave(rxPacket, len);
 
-      Serial.println("Respuesta recibida:");
-      for (int i = 0; i < len; i++) {
-        printHex(rxPacket[i]);
-      }
-      Serial.println();
-    } else {
-      Serial.printf("Sin respuesta (código %d)\n", state);
+    Serial.print("Paquete recibido: ");
+    for (int i = 0; i < len; i++) {
+      printHex(rxPacket[i]);
+      Serial.print(" ");
     }
+    Serial.println();
   }
 }
+
+//=============== FUNCIONES AUXILIARES ===============
 
 // Función para imprimir en hexadecimal
 void printHex(uint8_t num) {
@@ -297,7 +297,6 @@ void SendTC(uint8_t TC) {
       Serial.println("Unknown command");
       break;
   }
-
   // Preparar el paquete
   memcpy(txPacket, tcPacket, PACKET_SIZE);
   interleave(txPacket, PACKET_SIZE);
@@ -312,7 +311,3 @@ void SendTC(uint8_t TC) {
     Serial.println(state);
   }
 }
-
-
-
- 
