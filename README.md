@@ -1,4 +1,4 @@
-Este repositorio contiene la implementación de un sistema de envío de telecomandos LoRa.
+Este repositorio contiene la implementación de un sistema de envío y recepción de paquetes y telecomandos LoRa. Ambas implementaciones trabajan en escucha pasiva y transmiten el telecomando que se introduce via serial monitor.
 
 Estructura del repositorio:
 
@@ -8,4 +8,4 @@ Estructura del repositorio:
     
   - HTWL32V3:
     
-      Adaptación para Heltec WiFi LoRa 32 (V3) (ESP32-S3), usando la librería RadioLib en modo bloqueante.
+      Adaptación para Heltec WiFi LoRa 32 (V3) (ESP32-S3), usando la librería RadioLib.
