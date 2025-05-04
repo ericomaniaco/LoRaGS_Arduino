@@ -107,7 +107,7 @@ void loop() {
   
   if(loraIdle)
   {
-  	//turnOffRGB();
+  	turnOffRGB();
     loraIdle = false;
     Radio.Rx(0);
   }
@@ -280,8 +280,7 @@ void OnRxDone( uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr ) {
     int i;
     uint8_t *rxPacket;
 
-    //turnOnRGB(COLOR_RECEIVED,0);
-    //pots afegir printejar info per pantalla V3
+    turnOnRGB(COLOR_RECEIVED,0);
   	
     memset(rxData,0,sizeof(rxData));
     rxPacket =(uint8_t *) malloc(size);
