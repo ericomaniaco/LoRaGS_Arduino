@@ -5,7 +5,7 @@ Estructura del repositorio:
   - HTCC-AB01_NoBlock:
     
       Versión funcional para placas de la familia CubeCell (testeado en HTCC-AB01) utilizando la librería LoRaWan_APP.h con eventos y callbacks.
-      Esto significa que el programa no bloquea el MCU mientras esta ejecutando la transmisión o recepción de telecomandos.
+      Esto significa que el programa no bloquea el MCU mientras está ejecutando la transmisión o recepción de telecomandos.
     
   - HWL32V3_Block:
     
