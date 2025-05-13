@@ -1,6 +1,5 @@
 #include <Arduino.h>
 //#include "heltec.h"
-//hello
 #include "LoRaWan_APP.h"
 
 #define SERIAL_MONITOR_BAUD_RATE                    115200    // Baud rate
