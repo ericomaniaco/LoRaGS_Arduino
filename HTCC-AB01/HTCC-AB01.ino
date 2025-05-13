@@ -1,6 +1,7 @@
 #include <Arduino.h>
 //#include "heltec.h"
 #include "LoRaWan_APP.h"
+// hola nuria
 
 #define SERIAL_MONITOR_BAUD_RATE                    115200    // Baud rate
 #define RF_FREQUENCY                                868000000 // Hz
